@@ -54,10 +54,7 @@ python txt2gp5.py test/andere_datei.txt --dry-run --bases 16,32
 
 ## Beispiele (Ordner `test/` im Repo)
 Im Repo **tab2gp5** liegt unter [`test/`](https://github.com/woody6402/tab2gp5/tree/main/test) Beispielmaterial:
-- **2× TAB** (`*.txt`) — z. B. `test/take_five.txt` u. a.
-- **3× PNG** — Screenshots/Visuals als Referenz.
-
-In der README werden die Assets nicht direkt eingebunden, damit das Projekt sauber bleibt, aber du kannst im Repo die Bilder referenzieren, z. B.:
+- **2× TAB** (`*.txt`) und die generierten gp5 Files 
 
 ### Brahms
 ![Screenshot 1](test/png/brahms.png)
