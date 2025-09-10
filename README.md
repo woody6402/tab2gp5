@@ -2,6 +2,7 @@
 
 **Beta status:** This tool converts **ASCII TAB** files from (sometimes very old) archives into **Guitar Pro 5 (.gp5)**. The focus is on robust parsing, adaptive quantisation and a correct GP5 structure (header → measure → track). It is intended as a **starting point** for further improvements.
 
+Beware that's a helper, some adaptions of the text tab in cases where the score results in nonsens may help.
 
 ## Core functions
 - Reads ASCII TAB with typical header/comment lines and various TAB patterns (`E|`, `|-`, `E|-`, ...).
@@ -67,6 +68,8 @@ The repo **tab2gp5** contains sample material under [`test/`](https://github.com
 - For drop D or alternative tunings, there are detection/heuristics (e.g. `D|` as the lowest string). If necessary, set the desired tuning in the code.
 - For very uneven column spacing in the bar, `--tab-spacing` and `--bases` or `--meter` (fixed time signature) help.
 - Check the beginning of the tab and adapt it if necessary.
+
+- Sometimes parsing is disturbed by uncommon pattern, if so, visual cleaning the text tab may help a lot  ...
 
 ## Roadmap / Contributions welcome
 - Extended symbols (hammer-ons/pull-offs, slides, palm mutes, etc.).
