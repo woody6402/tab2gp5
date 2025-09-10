@@ -58,27 +58,21 @@ Im Repo **tab2gp5** liegt unter [`test/`](https://github.com/woody6402/tab2gp5/t
 - **3× PNG** — Screenshots/Visuals als Referenz.
 
 In der README werden die Assets nicht direkt eingebunden, damit das Projekt sauber bleibt, aber du kannst im Repo die Bilder referenzieren, z. B.:
-```md
+
 ### Brahms
 ![Screenshot 1](test/png/brahms.png)
 ### Buxtehude
 ![Screenshot 2](test/png/buxtehude.png)
 ### Brubeck
 ![Screenshot 3](test/png/take-five.png)
-```
 
 ## Hinweise zur Verwendung
 - Für Drop‑D oder alternative Tunings gibt es Erkennung/Heuristiken (z. B. `D|` als unterste Saite). Bei Bedarf im Code die gewünschte Stimmung setzen.
 - Für sehr ungleichmäßige Spaltenabstände im Takt helfen `--tab-spacing` sowie `--bases` bzw. `--meter` (fixe Taktart).
-- Bei **GP5-Fehlern** bitte prüfen:
-  - TimeSignature wird als `gp.models.TimeSignature(n, gp.models.Duration(d))` gesetzt (kein reines `int` als Nenner).
-  - Pro **MeasureHeader** existiert genau **eine Measure** im Track (sonst „alles im ersten Takt“).
+- Tab Anfang prüfen und gegebenfalls adaptieren.
 
 ## Roadmap / Beiträge willkommen
-- Bessere automatische Takterkennung pro Takt (z. B. 3/4 vs. 6/8) inkl. punktierter Muster.
 - Erweiterte Symbolik (Hammer‑Ons/Pull‑Offs, Slides, Palm‑Mute, etc.).
-- Mehrstimmige Stimmen und Rhythmus-Layering.
-- Robustere Fehlerbehandlung & Log-Ausgabe.
 
 > Dieses Tool ist im **Beta‑Stadium** und als **Startbasis** gedacht. Pull‑Requests, Issues und Testdaten willkommen!
 
