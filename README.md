@@ -37,13 +37,13 @@ python txt2gp5.py INPUT.txt [OUTPUT.gp5] [options]
 
 **Examples:**
 ```bash
-# 1) Standard-Export mit Titel/Autor
+# 1) Standard-Export with title/author
 python txt2gp5.py test/take_five.txt out.gp5   --title "Take Five (Archiv)" --author "Archiv" --tempo 170 --tab-spacing 2
 
-# 2) Feste Taktart (z. B. 5/4 für Take Five)
+# 2) Fixed meter (i.e. 5/4 für Take Five)
 python txt2gp5.py test/take_five.txt out.gp5 --meter 5/4
 
-# 3) Nur Testlauf (kein GP5), Quantisierung/Taktgrenzen prüfen
+# 3) Only testing (no GP5), quantization and tmeasure borders
 python txt2gp5.py test/andere_datei.txt --dry-run --bases 16,32
 ```
 
