@@ -2,7 +2,6 @@
 
 > **Beta-Status:** Dieses Tool wandelt **ASCII-TAB** Dateien aus (teils sehr alten) Archiven in **Guitar Pro 5 (.gp5)** um. Der Fokus liegt auf robustem Parsen, adaptiver Quantisierung und einem korrekten GP5-Aufbau (Header → Measure → Track). Es ist als **Startbasis** gedacht, um weitere Verbesserungen vorzunehmen.
 
-Repository: https://github.com/woody6402/tab2gp5
 
 ## Kernfunktionen
 - Liest ASCII-TAB mit typischen Kopf-/Kommentarzeilen und diversen TAB-Mustern (`E|`, `|-`, `E|-`, …).
