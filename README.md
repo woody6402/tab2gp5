@@ -1,41 +1,41 @@
 # tab2gp5 — ASCII TAB → Guitar Pro 5 (beta)
 
-> **Beta-Status:** Dieses Tool wandelt **ASCII-TAB** Dateien aus (teils sehr alten) Archiven in **Guitar Pro 5 (.gp5)** um. Der Fokus liegt auf robustem Parsen, adaptiver Quantisierung und einem korrekten GP5-Aufbau (Header → Measure → Track). Es ist als **Startbasis** gedacht, um weitere Verbesserungen vorzunehmen.
+**Beta status:** This tool converts **ASCII TAB** files from (sometimes very old) archives into **Guitar Pro 5 (.gp5)**. The focus is on robust parsing, adaptive quantisation and a correct GP5 structure (header → measure → track). It is intended as a **starting point** for further improvements.
 
 
-## Kernfunktionen
-- Liest ASCII-TAB mit typischen Kopf-/Kommentarzeilen und diversen TAB-Mustern (`E|`, `|-`, `E|-`, …).
-- Erkennung von Tab-Blöcken (6 Saiten), Taktstrichen `|`, vertikalen Akkorden (mehrstellige Bünde).
-- **Adaptive Quantisierung** (z. B. 16→32→64) und optional **feste Taktart** per Argument.
-- **Erste Note im Takt**: kleiner Vorlaufabstand wird **nicht als Pause** interpretiert.
-- Fehlertoleranz bei unplausiblen Saiten-/Bundwerten (wird übersprungen statt abgebrochen).
-- Export als **.gp5** über [pyguitarpro](https://pypi.org/project/pyguitarpro/).
+## Core functions
+- Reads ASCII TAB with typical header/comment lines and various TAB patterns (`E|`, `|-`, `E|-`, ...).
+- Recognition of tab blocks (6 strings), bar lines `|`, vertical chords (multi-digit frets).
+- **Adaptive quantisation** (e.g. 16→32→64) and optional **fixed time signature** via argument.
+- **First note in the bar**: small lead-in distance is **not interpreted as a rest**.
+- Error tolerance for implausible string/fret values (skipped instead of aborted).
+- Export as **.gp5** via [pyguitarpro](https://pypi.org/project/pyguitarpro/).
 
-> Hinweis: Die Erkennung/Quantisierung ist heuristisch und noch nicht in allen Randfällen perfekt (Beta).
+> Note: Recognition/quantisation is heuristic and not yet perfect in all edge cases (beta).
 
 ## Installation
 ```bash
-# Voraussetzung für GP5-Export
+# Prerequisite for GP5 export
 pip install pyguitarpro
 ```
 
-## Aufruf & Parameter
+## Call & Parameters
 
 ```bash
-python txt2gp5.py INPUT.txt [OUTPUT.gp5] [Optionen]
+python txt2gp5.py INPUT.txt [OUTPUT.gp5] [options]
 ```
 
-**Optionen (Auszug):**
-- `--title "Songtitel"` — Titel im GP5.
-- `--author "Autor/Artist"` — Artist/Autor im GP5.
-- `--tempo 120` — BPM (Standard 120).
-- `--tab-spacing 2` — Anzahl Spalten am Taktanfang, die **keine** Pause bedeuten (Vorlauf).
-- `--bases 16,32,64` — Quantisierungsbasen (für die Auto-Auflösung je Takt).
-- `--fret-max 24` — maximale Bundnummer (Fehlertoleranz).
-- `--dry-run` — nur Parsen & Quantisierung zeigen (kein GP5-Schreiben).
-- `--meter N/D` — **feste Taktart** für alle Takte (z. B. `3/4`, `5/4`, `6/8`). Der Nenner wird intern als `gp.models.Duration(D)` gesetzt.
+**Options (excerpt):**
+- `--title ‘Song title’` — Title in GP5.
+- `--author ‘Author/Artist’` — Artist/author in GP5.
+- `--tempo 120` — BPM (default 120).
+- `--tab-spacing 2` — Number of columns at the beginning of the bar that do **not** indicate a pause (lead-in).
+- `--bases 16,32,64` — Quantisation bases (for auto-resolution per bar).
+- `--fret-max 24` — Maximum fret number (error tolerance).
+- `--dry-run` — show parsing & quantisation only (no GP5 writing).
+- `--meter N/D` — **fixed time signature** for all bars (e.g. `3/4`, `5/4`, `6/8`). The denominator is set internally as `gp.models.Duration(D)`.
 
-**Beispiele:**
+**Examples:**
 ```bash
 # 1) Standard-Export mit Titel/Autor
 python txt2gp5.py test/take_five.txt out.gp5   --title "Take Five (Archiv)" --author "Archiv" --tempo 170 --tab-spacing 2
@@ -47,14 +47,14 @@ python txt2gp5.py test/take_five.txt out.gp5 --meter 5/4
 python txt2gp5.py test/andere_datei.txt --dry-run --bases 16,32
 ```
 
-## Tests & Qualität
-- **Gesamte ClassLab‑Library gescannt:** > **2 000** Dateien wurden durchlaufen; bei **< 20** kam es zu Fehlern (z. B. exotische Kodierung/Format).
-- **Stichproben in TuxGuitar geprüft:** ausgewählte konvertierte Dateien wurden in **TuxGuitar** geöffnet und **als Hörbeispiel abgespielt** — Timing & Taktung sind bei diesen Beispielen plausibel.
-- Bekannte Grenzen: Freiform-TABs ohne klare Balken/Striche, Mischformate oder manuell „verschobene“ Ziffern können die Heuristiken aushebeln (Beta).
+## Tests & Quality
+- **Entire ClassLab library scanned:** > **2,000** files were processed; **< 20** errors occurred (e.g. exotic encoding/format).
+- **Random samples checked in TuxGuitar:** selected converted files were opened in **TuxGuitar** and **played back as audio samples** — timing and metronome are plausible in these examples.
+- Known limitations: Free-form TABs without clear bars/sticks, mixed formats or manually ‘shifted’ numbers can override the heuristics (beta).
 
-## Beispiele (Ordner `test/` im Repo)
-Im Repo **tab2gp5** liegt unter [`test/`](https://github.com/woody6402/tab2gp5/tree/main/test) Beispielmaterial:
-- **2× TAB** (`*.txt`) und die generierten gp5 Files 
+## Examples (folder `test/` in the repo)
+The repo **tab2gp5** contains sample material under [`test/`](https://github.com/woody6402/tab2gp5/tree/main/test):
+- **2× TAB** (`*.txt`) and the generated gp5 files 
 
 ### Brahms
 ![Screenshot 1](test/png/brahms.png)
@@ -63,15 +63,17 @@ Im Repo **tab2gp5** liegt unter [`test/`](https://github.com/woody6402/tab2gp5/t
 ### Brubeck
 ![Screenshot 3](test/png/take-five.png)
 
-## Hinweise zur Verwendung
-- Für Drop‑D oder alternative Tunings gibt es Erkennung/Heuristiken (z. B. `D|` als unterste Saite). Bei Bedarf im Code die gewünschte Stimmung setzen.
-- Für sehr ungleichmäßige Spaltenabstände im Takt helfen `--tab-spacing` sowie `--bases` bzw. `--meter` (fixe Taktart).
-- Tab Anfang prüfen und gegebenfalls adaptieren.
+## Notes on usage
+- For drop D or alternative tunings, there are detection/heuristics (e.g. `D|` as the lowest string). If necessary, set the desired tuning in the code.
+- For very uneven column spacing in the bar, `--tab-spacing` and `--bases` or `--meter` (fixed time signature) help.
+- Check the beginning of the tab and adapt it if necessary.
 
-## Roadmap / Beiträge willkommen
-- Erweiterte Symbolik (Hammer‑Ons/Pull‑Offs, Slides, Palm‑Mute, etc.).
+## Roadmap / Contributions welcome
+- Extended symbols (hammer-ons/pull-offs, slides, palm mutes, etc.).
 
-> Dieses Tool ist im **Beta‑Stadium** und als **Startbasis** gedacht. Pull‑Requests, Issues und Testdaten willkommen!
+This tool is in **beta** and intended as a **starting point**. Pull requests, issues and test data are welcome!
+
+
 
 ---
 
