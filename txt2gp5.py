@@ -307,8 +307,8 @@ def read_ascii_tab(path: str, sanitize_mode: str = "safe"):
 
     sanitized = _sanitize_lines_for_tabs(raw, mode=sanitize_mode)
     
-    _write_sanitizer_log(raw, sanitized, "txt2gp5.log",
-                             only_changes= True, mode=sanitize_mode)
+    #_write_sanitizer_log(raw, sanitized, "txt2gp5.log",
+    #                         only_changes= True, mode=sanitize_mode)
 
     # Danach erst filtern:
     lines = [ln for ln in sanitized if is_tab_line(ln)]        
@@ -651,6 +651,48 @@ def build_song(blocks, widths, rowmaps, title="ASCII TAB", tuning_midi: Optional
 
     return song
 
+# -------------
+
+def _write_measure_log(blocks, widths, rowmaps, out_path: str) -> None:
+    """
+    Schreibt pro Block und Takt:
+      - Spaltenbereich und Onset-Spalten
+      - RAW-Slice (6 Zeilen) des Taktes exakt aus dem Tab-Block (block[row][a:b])
+    """
+    # Stringnamen nach Saitennummer (1..6) für Kopf in der Log-Ausgabe
+    STR_NAME = {1:"e", 2:"B", 3:"G", 4:"D", 5:"A", 6:"E"}
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        total = 0
+        for bi, (block, width, rowmap) in enumerate(zip(blocks, widths, rowmaps)):
+            chord_cols, bar_cols = find_chord_and_bar_columns(block)
+            bounds = [0] + [c for c in bar_cols if 0 < c < width] + [width]
+            clean = [bounds[0]]
+            for b in bounds[1:]:
+                if b > clean[-1]:
+                    clean.append(b)
+            pairs = [(clean[i], clean[i+1]) for i in range(len(clean)-1)]
+
+            f.write(f"# Block {bi} | width={width} | bars={bar_cols}\n")
+            for mi, (a, b) in enumerate(pairs):
+                onsets = [c for c in chord_cols if a <= c < b]
+                
+                mno = total + 1  # fortlaufende Takt-Nr. über alle Blöcke
+                
+                #f.write(f"{bi:02d}:{mi:03d}  cols {a:>3}-{b:<3}  onsets {onsets}\n")
+                f.write(f"{bi:02d}:{mi:03d}  takt {mno:04d}  cols {a:>3}-{b:<3}  onsets {onsets}\n")
+                # --- RAW-Text des Taktes (6 Zeilen) ---
+                # rowmap: rowIndex -> stringNo (1..6). Wir geben mit Stringnamen aus.
+                for row_idx in range(6):
+                    s_no = int(rowmap[row_idx]) if row_idx < len(rowmap) else (row_idx+1)
+                    label = STR_NAME.get(s_no, "?")
+                    seg = block[row_idx][a:b]  # WICHTIG: kein strip(), Rohtext behalten
+                    f.write(f"    {label}|{seg}\n")
+                f.write("\n")
+                total += 1
+        f.write(f"# total measures: {total}\n")
+
+
 
 # ----------------------------- CLI -----------------------------
 
@@ -668,7 +710,8 @@ def main():
     p.add_argument("--meter", default="", help="Feste Taktart N/D, z.B. 4/4, 3/4, 6/8")
     p.add_argument("--sanitize", choices=["off","safe","aggressive"], default="safe",
                help="Zeilen vor dem Parsen standardisieren")
-
+    p.add_argument("--log-measures", nargs="?", const="-", default=None,
+        help="Einfachen Takt-Log schreiben; ohne Wert ⇒ INPUT.measures.log")
     args = p.parse_args()
 
 
@@ -679,7 +722,18 @@ def main():
 
     #blocks, widths, rowmaps, tuning = read_ascii_tab(args.input)
     blocks, widths, rowmaps, tuning = read_ascii_tab(args.input, sanitize_mode=args.sanitize)    
-    
+
+    # Änderung in main(): Standard-Logpfad an den *Zielpfad* (OUTPUT) koppeln
+    if args.log_measures is not None:
+        import os
+        log_path = args.log_measures
+        if log_path == "-":
+            # Zielpfad bestimmen (OUTPUT oder abgeleitet aus INPUT)
+            out_path = args.output or (os.path.splitext(args.input)[0] + ".gp5")
+            base, _ = os.path.splitext(out_path)
+            log_path = base + ".measures.log"
+        _write_measure_log(blocks, widths, rowmaps, log_path)
+   
     
     title = args.title or args.input
     fixed_meter = None
