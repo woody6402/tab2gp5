@@ -76,7 +76,14 @@ The repo **tab2gp5** contains sample material under [`test/`](https://github.com
 
 This tool is in **beta** and intended as a **starting point**. Pull requests, issues and test data are welcome!
 
+## Experiences
 
+- Several runs on my private copy of the classtab archive. 3040 files written, 40 fails.
+  - quality depends on the written TAB notation
+  - sometimes additional text/chars can lead to wrong recognized tab lines => if eliminated out of the ascii tab file can normally be parsed
+  - good results were achieved for example with:
+    - Mozart: Kleine Nachtmusik  
+  - Did some trials on ultimate guitar tabs. experiences are similiar.  
 
 ---
 
