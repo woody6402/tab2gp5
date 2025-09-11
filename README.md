@@ -82,8 +82,8 @@ This tool is in **beta** and intended as a **starting point**. Pull requests, is
   - quality depends on the written TAB notation
   - sometimes additional text/chars can lead to wrong recognized tab lines => if eliminated out of the ascii tab file can normally be parsed
   - good results were achieved for example with:
-    - Mozart: Kleine Nachtmusik  
-  - Did some trials on ultimate guitar tabs. experiences are similiar.  
+    - Mozart: Kleine Nachtmusik
+- Did some trials on ultimate guitar tabs. experiences are similiar.  
 
 ---
 
