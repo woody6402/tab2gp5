@@ -43,6 +43,11 @@ def is_tab_line(line: str) -> bool:
     if not s.strip():
         return False
     t = s.lstrip()
+    
+    # NEU: reine Zähl-/Hinweiszeilen wie "| 3 |", "|   1 . 2 . |" o.ä. ignorieren
+    if re.match(r'^\s*\|\s*[\d.\s]+\s*\|\s*$', t):
+        return False
+
 
     # Ruler/Count-Zeilen (z.B. "10 | . | . |")
     if re.match(r'^\s*\d+\s*\|[ .|]*$', s):
@@ -56,10 +61,23 @@ def is_tab_line(line: str) -> bool:
         first, last = pipes[0], pipes[-1]
         if last > first:
             mid = t[first+1:last]
-            if re.search(r'\d', mid):
+            
+            # NEU: Für unbeschriftete Zeilen: kurze / „zu saubere“ Inhalte ignorieren
+            mid_stripped = mid.strip()
+            if len(mid_stripped) < 6:
+                return False
+
+            hyphens = mid.count('-')
+
+            # NEU: Hyphen-Dichte als Hauptkriterium (klassische TAB-Optik)
+            if hyphens >= max(5, len(mid)//4):
                 return True
-            if mid.count('-') >= max(5, len(mid)//3):
+
+            # NEU: Ziffern alleine reichen nicht mehr – nur mit ausreichend '-' akzeptieren
+            if re.search(r'\d', mid) and hyphens >= 3:
                 return True
+
+            return False
     return False
 
 
@@ -98,17 +116,202 @@ def detect_row_to_string(raw6: List[str]) -> List[int]:
         return [6,5,4,3,2,1]
     return [1,2,3,4,5,6]
 
+# -----------------
+
+_NOTE2SEMI = {
+    "C":0,"C#":1,"Db":1,"D":2,"D#":3,"Eb":3,"E":4,"F":5,"F#":6,"Gb":6,
+    "G":7,"G#":8,"Ab":8,"A":9,"A#":10,"Bb":10,"B":11, "H":11  # deutsches H
+}
+
+def _parse_label_note(s: str) -> str | None:
+    # nimmt "e|", "e-", "Eb|", "F#-" etc. aus Zeilenköpfen
+    m = re.match(r'^\s*([A-Ga-g](?:[#b])?)\s*[\|\-\s]', s)
+    if not m: 
+        return None
+    n = m.group(1).upper()
+    # deutsche Schreibweise: "H" bleibt B, "B" behandeln wir als Bb nur wenn explizit "Bb"
+    if n == "H": n = "B"
+    return n
+
+def _semi_delta(from_note: str, to_note: str) -> int:
+    """Kleinster signed Abstand in Halbtönen (−6..+6) von from_note nach to_note."""
+    a = _NOTE2SEMI[from_note]; b = _NOTE2SEMI[to_note]
+    d = (b - a) % 12
+    return d-12 if d>6 else d
 
 def detect_tuning_from_labels(raw6: List[str]) -> List[int]:
+    """
+    Liefert MIDI-Tuning pro Saite (1..6) anhand der Zeilenköpfe.
+    - Erkennt Standard, Drop-D, DADGAD, Open G/D/C, Eb-Tuning etc., sofern die Label-Buchstaben passen.
+    - Wenn Labels nur "Standardbuchstaben" tragen, aber anders gestimmt ist, kannst du zusätzlich
+      einen CLI-Override (siehe unten) nutzen.
+    """
+    # Standard (Saite 1..6): e4 b3 g3 d3 a2 e2
+    std = [64, 59, 55, 50, 45, 40]
+    # Standard-Notenbuchstaben je Saite (nur Buchstaben, Oktave ist in std kodiert)
+    std_names = ["E","B","G","D","A","E"]  # Reihenfolge 1..6 (hoch→tief)
+
+    # Reihenfolge der 6 Zeilen (oben→unten) zu Saitennummern (1..6) bestimmen
+    rowmap = detect_row_to_string(raw6)  # z.B. [1,2,3,4,5,6] oder [6,5,4,3,2,1]
+
+    # Buchstaben aus den Zeilenköpfen lesen und in Saitenreihenfolge 1..6 legen
+    labels_1to6: list[str | None] = [None]*6
+    for r, ln in enumerate(raw6):
+        s_no = int(rowmap[r])  # 1..6
+        lab = _parse_label_note(ln)
+        labels_1to6[s_no-1] = lab
+
+    # Falls keine Labels gefunden: Standard
+    if not any(labels_1to6):
+        return std[:]
+
+    # Bekannte Tunings (nur Buchstabenfolge, Oktaven werden aus std abgeleitet)
+    KNOWN = {
+        # Saite 1..6 (hoch→tief)
+        ("E","B","G","D","A","E"): std,                   # Standard
+        ("E","B","G","D","A","D"): [64,59,55,50,45,38],   # Drop D
+        ("D","A","D","G","A","D"): [62,57,55,50,45,38],   # DADGAD
+        ("D","B","G","D","G","D"): [62,59,55,50,43,38],   # Open G (hoch→tief: D B G D G D)
+        ("D","A","F#","D","A","D"): [62,57,54,50,45,38],  # Open D
+        ("D","B","G","D","A","D"): [62,59,55,50,45,38],   # Double Drop D
+        ("Eb","Bb","Gb","Db","Ab","Eb"): [63,58,54,49,44,39], # Halbton runter
+        ("C","A","F","C","G","C"): [60,57,53,48,43,36],   # Open C (eine Variante)
+        ("D","A","D","G","B","E"): [64,59,55,50,45,38],   # „Drop D“ in Buchstabenfolge 1..6
+    }
+
+    # 1) Exakte Buchstabenfolge matchen (wo Labels vollständig sind)
+    key = tuple((lab or std_names[i]) for i, lab in enumerate(labels_1to6))
+    if key in KNOWN:
+        return KNOWN[key][:]
+
+    # 2) Ansonsten: pro Saite um den kleinsten Halbtonabstand zur gelabelten Note transponieren
+    tuning = std[:]
+    for i in range(6):  # i=0..5 → Saite (1..6)
+        lab = labels_1to6[i]
+        if not lab: 
+            continue
+        try:
+            d = _semi_delta(std_names[i], lab)  # z.B. E → D = -2
+            tuning[i] = std[i] + d
+        except KeyError:
+            # unbekannte Schreibweise – lasse Standard für diese Saite
+            pass
+
+    return tuning
+
+
+
+
+def detect_tuning_from_labels1(raw6: List[str]) -> List[int]:
     tuning = [64, 59, 55, 50, 45, 40]  # e4 b3 g3 d3 a2 e2
     if raw6 and raw6[-1].lstrip().lower().startswith('d|'):
         tuning[5] = 38  # Drop-D
     return tuning
 
 
-def read_ascii_tab(path: str):
+#_SANITIZER_HEADER_RE = re.compile(r'^\s*([eEbBgGdDaA])\s*([|\-\s])')
+_SANITIZER_HEADER_RE = re.compile(r'^\s*([eEbBgGdDaAcC])\s*(\||-)')
+
+
+def _sanitize_line(line: str, mode: str = "safe") -> str:
+    """
+    'Sanfte' Normalisierung beim Einlesen:
+      - E-, e-, B-  →  E|, e|, B|   (nur Kopf)
+      - E␠, e␠      →  E|, e|
+      - Unicode-Dashes etc. → '-'
+      - Tabs → Spaces
+      - (aggressiv) vereinzelte kosmetische Fixes
+    """
+    s = line.rstrip("\n")
+
+    # Standardisieren: Tabs/Unicode-Dashes
+    s = s.replace("\t", "    ")
+    s = s.replace("–", "-").replace("—", "-").replace("‒", "-")
+
+    m = _SANITIZER_HEADER_RE.match(s)
+    if m:
+        # NEU: Prosa-Schutz – wenn nach dem Kopf direkt (oder nach Spaces) Buchstaben kommen
+        # und KEINE Ziffern bzw. kein typisches TAB-Muster folgen, NICHT anfassen.
+        body = s[m.end():]
+        if re.match(r'^\s*[A-Za-z]', body) and not re.search(r'[0-9]|[-|].*[-|]', body):
+            return s
+        letter = m.group(1)
+        s = _SANITIZER_HEADER_RE.sub(f"{letter}|", s, count=1)
+    else:
+        # NEU: Fallback nur, wenn kurz nach dem Anfang TAB-typische Zeichen auftauchen
+        # (Ziffern oder mindestens zwei '-')
+        m2 = re.match(r'^\s*([eEbBgGdDaA])(?=[\s\-\|]*([0-9xX]|--))', s)
+        if m2:
+            letter = m2.group(1)
+            s = re.sub(r'^\s*([eEbBgGdDaA])', f"{letter}|", s, count=1)
+
+    if mode == "aggressive":
+        # Optionale Heuristiken (vorsichtig einsetzen):
+        # (a) Doppelte Spaces in langen Strecken glätten
+        s = re.sub(r' {3,}', lambda m: "-" * len(m.group(0)), s)
+        # (b) Verstreute ' .' oder ähnliche Artefakte zu '-' machen
+        s = s.replace(" .", "-").replace(". ", "-").replace(".", "-")
+
+    return s
+
+
+def _sanitize_lines_for_tabs(lines: list[str], mode: str = "safe") -> list[str]:
+    """
+    wendet _sanitize_line auf alle Zeilen an.
+    Zusätzlich (aggressiv): wenn in einem 6er-Block einige Zeilen keinen '|' nach dem Kopf haben,
+    aber andere schon, wird in den fehlenden ein '|' nachgezogen.
+    """
+    out = [_sanitize_line(ln, mode) for ln in lines]
+
+    if mode == "aggressive":
+        # Versuch blockweise Kopf-Separator zu vereinheitlichen (6er-Fenster)
+        i = 0
+        while i + 5 < len(out):
+            block = out[i:i+6]
+            # Erkennen, ob das Struktur nach Saiten aussieht
+            heads = [ln.lstrip()[:2].lower() for ln in block]
+            is_block = sum(h and h[0] in "eE" "bBgGdDaA" for h in heads) >= 4
+            if not is_block:
+                i += 1; continue
+            # Wenn mindestens eine Zeile eindeutig 'X|' hat, angleichen
+            any_bar = any(re.match(r'^\s*[eEbBgGdDaA]\|', ln) for ln in block)
+            if any_bar:
+                for j in range(6):
+                    if re.match(r'^\s*[eEbBgGdDaA][\-\s]', block[j]):
+                        block[j] = re.sub(r'^(\s*[eEbBgGdDaA])[\-\s]', r'\1|', block[j], count=1)
+                out[i:i+6] = block
+            i += 6
+    return out
+
+def _write_sanitizer_log(raw_lines: list[str], sanitized_lines: list[str],
+                         log_path: str, only_changes: bool = False, mode: str = "safe") -> None:
+    import datetime
+    with open(log_path, "w", encoding="utf-8") as log:
+        log.write("# Sanitizer Log\n")
+        log.write(f"# Mode: {mode}\n")
+        log.write(f"# Lines: {len(raw_lines)}\n")
+        log.write(f"# Created: {datetime.datetime.utcnow().isoformat()}Z\n\n")
+        for idx, (r, s) in enumerate(zip(raw_lines, sanitized_lines), start=1):
+            #if only_changes and r == s:
+            #    continue
+            #changed = "CHANGED" if r != s else "UNCHANGED"
+            #log.write(f"[{idx:05d}] {changed}\n- {r}\n+ {s}\n\n")
+            log.write(f"{s}\n")
+
+
+
+def read_ascii_tab(path: str, sanitize_mode: str = "safe"):
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
-        lines = [ln.rstrip("\n") for ln in f if is_tab_line(ln)]
+        raw = [ln.rstrip("\n") for ln in f]
+        
+
+    sanitized = _sanitize_lines_for_tabs(raw, mode=sanitize_mode)
+    
+    _write_sanitizer_log(raw, sanitized, "txt2gp5.log",
+                             only_changes= True, mode=sanitize_mode)
+
+    # Danach erst filtern:
+    lines = [ln for ln in sanitized if is_tab_line(ln)]        
 
     blocks, widths, rowmaps = [], [], []
     first_tuning: Optional[List[int]] = None
@@ -463,15 +666,21 @@ def main():
     p.add_argument("--fret-max", type=int, default=FRET_MAX_DEFAULT, help="max. Bund (Fehlertoleranz)")
     p.add_argument("--dry-run", action="store_true", help="Kein GP5 schreiben; nur Parsing/Quantisierung ausgeben")
     p.add_argument("--meter", default="", help="Feste Taktart N/D, z.B. 4/4, 3/4, 6/8")
+    p.add_argument("--sanitize", choices=["off","safe","aggressive"], default="safe",
+               help="Zeilen vor dem Parsen standardisieren")
 
     args = p.parse_args()
+
 
     global LEADING_SILENCE_TOL
     LEADING_SILENCE_TOL = max(0, int(args.tab_spacing))
 
     bases = tuple(int(x) for x in args.bases.split(",") if x.strip())
 
-    blocks, widths, rowmaps, tuning = read_ascii_tab(args.input)
+    #blocks, widths, rowmaps, tuning = read_ascii_tab(args.input)
+    blocks, widths, rowmaps, tuning = read_ascii_tab(args.input, sanitize_mode=args.sanitize)    
+    
+    
     title = args.title or args.input
     fixed_meter = None
     if args.meter:
